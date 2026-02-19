@@ -1,0 +1,44 @@
+# ============================================================
+# 航空货运网络分析 — 全局配置文件
+# ============================================================
+
+# --- 数据路径 ---
+data:
+  raw_path: "data/raw/flights.csv"
+  processed_dir: "data/processed"
+
+# --- 图构建参数 ---
+graph:
+  # 权重字段: 用 flights × payload_tonnes 作为边权重
+  weight_col: "weight"
+
+# --- PageRank 参数 ---
+pagerank:
+  alpha: 0.85          # 阻尼因子 (damping factor)
+  max_iter: 100
+  tol: 1.0e-06
+
+# --- DomiRank 参数 ---
+domirank:
+  sigma: -0.5          # 耦合强度 σ, 需满足 |σ| < 1/ρ(A)
+  theta: 1.0           # θ 参数
+  beta: 1.0            # 衰减率 β
+  max_iter: 500
+  tol: 1.0e-06
+
+# --- 鲁棒性模拟 ---
+robustness:
+  strategies:
+    - degree
+    - betweenness
+    - pagerank
+    - domirank
+    - random
+  random_runs: 10       # 随机攻击重复次数
+
+# --- 可视化 ---
+visualization:
+  top_n: 15             # 柱状图展示前 N 个机场
+  figure_dpi: 150
+  save_plots: true
+  show_plots: true
