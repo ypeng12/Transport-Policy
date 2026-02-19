@@ -66,10 +66,17 @@ def aggregate_edges(df, time_group=None):
     return result
 
 
-def run_preprocess(df, time_group=None):
+def run_preprocess(df, meta_df=None, time_group=None):
     """
-    预处理主流程: 计算权重 → 聚合边
+    预处理主流程: 计算权重 → 聚合边 (+ 验证元数据)
     """
     df = compute_weight(df)
     edges = aggregate_edges(df, time_group=time_group)
+
+    if meta_df is not None:
+        # 确保所有 OD 对的机场都在元数据中
+        missing = set(edges["origin"]) | set(edges["dest"]) - set(meta_df["id"])
+        if missing:
+            print(f"  [preprocess] ⚠️ 警告: 部分机场缺少地理元数据: {missing}")
+
     return edges

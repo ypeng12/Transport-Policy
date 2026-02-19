@@ -256,64 +256,124 @@ def giant_component_ratio(G):
 #  汇总计算
 # ====================================================================
 
-def compute_all_centralities(G, pagerank_params=None, domirank_params=None):
-    """
-    计算所有 5 种节点中心性指标，返回合并后的 DataFrame。
+# ====================================================================
+#  高级分析 (Advanced Analysis & Classification)
+# ====================================================================
 
-    Parameters
-    ----------
-    G : nx.DiGraph
-    pagerank_params : dict, optional
-        PageRank 参数 (alpha, max_iter, tol)
-    domirank_params : dict, optional
-        DomiRank 参数 (sigma, theta, beta, max_iter, tol)
-
-    Returns
-    -------
-    pd.DataFrame
-        每行一个机场，列为各中心性分值
+def classify_hubs(centrality_df, major_threshold=0.6, regional_threshold=0.2):
     """
-    if pagerank_params is None:
-        pagerank_params = {}
-    if domirank_params is None:
-        domirank_params = {}
+    机场等级分类: 核心枢纽 (Major) / 区域中心 (Regional) / 普通支线 (Feeder)
+    评分逻辑: 70% 度中心性 + 30% DomiRank (反映全局与局部重要性)
+    """
+    df = centrality_df.copy()
+
+    # 归一化输入
+    def norm(s): return (s - s.min()) / (s.max() - s.min()) if s.max() > s.min() else s * 0
+
+    score = 0.7 * norm(df["total_degree"]) + 0.3 * norm(df["domirank"])
+    df["hub_score"] = score
+
+    def get_class(s):
+        if s >= major_threshold: return "Major Hub"
+        if s >= regional_threshold: return "Regional Hub"
+        return "Feeder"
+
+    df["category"] = df["hub_score"].apply(get_class)
+    print(f"[metrics] 机场分类完成: {df['category'].value_counts().to_dict()}")
+    return df
+
+
+def analyze_small_world(G, stats_dict):
+    """
+    分析网络的“小世界”特性。
+    逻辑: 比较实际网络与等规模随机网络 (Erdos-Renyi) 的 L 和 C。
+    小世界网络特征: C_actual >> C_random 且 L_actual ≈ L_random
+    """
+    n, e = stats_dict["num_nodes"], stats_dict["num_edges"]
+    if n < 3: return stats_dict
+
+    # 等规模随机图的理论值
+    p = e / (n * (n - 1) / 2) if n > 1 else 0
+    c_rand = p
+    l_rand = np.log(n) / np.log(max(1.1, stats_dict["num_edges"] / n))
+
+    c_actual = stats_dict["clustering_coefficient"]
+    l_actual = stats_dict["avg_shortest_path"]
+
+    stats_dict["small_world_ratio_c"] = c_actual / c_rand if c_rand > 0 else 0
+    stats_dict["small_world_ratio_l"] = l_actual / l_rand if l_rand > 0 else 0
+
+    is_small_world = (stats_dict["small_world_ratio_c"] > 3) and (stats_dict["small_world_ratio_l"] < 2)
+    stats_dict["is_small_world"] = bool(is_small_world)
+
+    print(f"[metrics] 小世界分析: C_ratio={stats_dict['small_world_ratio_c']:.2f}, "
+          f"L_ratio={stats_dict['small_world_ratio_l']:.2f}, SmallWorld={is_small_world}")
+    return stats_dict
+
+
+def generate_key_insights(centrality_df, stats_dict):
+    """
+    自动生成定性研究结论 (Key Insights)
+    """
+    temp_df = centrality_df.sort_values("hub_score", ascending=False)
+    top_hub = temp_df.iloc[0]["node"]
+    top_domi = centrality_df.nlargest(1, "domirank").iloc[0]["node"]
+
+    insights = []
+    insights.append(f"1. 网络拓扑分析: 该网络规模为 {stats_dict['num_nodes']} 个节点，"
+                    f"密度为 {stats_dict['density']:.4f}。")
+
+    if stats_dict.get("is_small_world"):
+        insights.append("2. 结构特性: 表现出显著的'小世界'特性，具备高效的货物中转能力。")
+    else:
+        insights.append("2. 结构特性: 网络连接相对稀疏，中转效率仍有提升空间。")
+
+    insights.append(f"3. 核心枢纽: '{top_hub}' 是全网最关键的流量节点和关口。")
+
+    if top_hub != top_domi:
+        insights.append(f"4. 局部控制力: 值得关注的是 '{top_domi}' 展现出极高的 DomiRank (支配力)，"
+                        f"在其所在区域具有极强的局部统治地位。")
+
+    print(f"[metrics] 已生成 {len(insights)} 条关键结论")
+    return insights
+
+
+def compute_all_centralities(G, pagerank_params=None, domirank_params=None, classification_params=None):
+    """
+    计算所有 5 种节点中心性指标 + 自动分类等级。
+    """
+    if pagerank_params is None: pagerank_params = {}
+    if domirank_params is None: domirank_params = {}
+    if classification_params is None: classification_params = {}
 
     print("\n" + "=" * 60)
-    print(" 计算节点中心性")
+    print(" 计算节点中心性与分类")
     print("=" * 60)
 
-    # 1. 度中心性
-    print("\n[1/5] 度中心性 (Degree)...")
-    deg_df = degree_centrality(G)
+    # ... 原有计算逻辑 ...
+    # (由于 replace_file_content 规则，我在这里重新组装整个函数逻辑)
 
-    # 2. 中介中心性
-    print("[2/5] 中介中心性 (Betweenness)...")
+    # 1-5 中心性计算
+    centrality_df = degree_centrality(G)
     bc = betweenness_centrality(G)
-
-    # 3. 接近中心性
-    print("[3/5] 接近中心性 (Closeness)...")
     cc = closeness_centrality(G)
-
-    # 4. PageRank
-    print("[4/5] PageRank...")
     pr = pagerank(G, **pagerank_params)
-
-    # 5. DomiRank
-    print("[5/5] DomiRank...")
     dr = domirank(G, **domirank_params)
 
-    # 合并为一张表
-    result = deg_df.copy()
-    result["betweenness"] = result["node"].map(bc)
-    result["closeness"] = result["node"].map(cc)
-    result["pagerank"] = result["node"].map(pr)
-    result["domirank"] = result["node"].map(dr)
+    centrality_df["betweenness"] = centrality_df["node"].map(bc)
+    centrality_df["closeness"] = centrality_df["node"].map(cc)
+    centrality_df["pagerank"] = centrality_df["node"].map(pr)
+    centrality_df["domirank"] = centrality_df["node"].map(dr)
 
-    # 按总度排序
-    result = result.sort_values("total_degree", ascending=False).reset_index(drop=True)
+    # 新增分类步骤
+    centrality_df = classify_hubs(
+        centrality_df,
+        major_threshold=classification_params.get("major_hub_threshold", 0.6),
+        regional_threshold=classification_params.get("regional_hub_threshold", 0.2)
+    )
 
-    print(f"\n✅ 节点中心性计算完成 ({len(result)} 个机场)")
-    return result
+    centrality_df = centrality_df.sort_values("hub_score", ascending=False).reset_index(drop=True)
+    return centrality_df
 
 
 def compute_network_stats(G):

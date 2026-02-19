@@ -5,7 +5,18 @@
 # --- 数据路径 ---
 data:
   raw_path: "data/raw/flights.csv"
+  metadata_path: "data/raw/airports.csv" # 新增机场元数据路径
   processed_dir: "data/processed"
+
+# --- 节点分类与样式 ---
+classification:
+  # 分类权重: Score = 0.7 * Norm(Degree) + 0.3 * Norm(DomiRank)
+  major_hub_threshold: 0.6
+  regional_hub_threshold: 0.2
+  colors:
+    major_hub: "#10B981"    # Emerald 500 (匹配 AircargoNet)
+    regional_hub: "#6366F1" # Indigo 500
+    feeder: "#94A3B8"      # Slate 400
 
 # --- 图构建参数 ---
 graph:

@@ -321,42 +321,114 @@ def plot_correlation_matrix(centrality_df, output_dir, dpi=150):
 
 
 # ====================================================================
-#  统一调用入口
+#  1. 网络拓扑图 (带地理坐标)
 # ====================================================================
 
-def generate_all_plots(G, centrality_df, robustness_df, output_dir, top_n=15, dpi=150):
+def plot_spatial_topology(G, centrality_df, output_dir, classification_cfg, dpi=150):
+    """
+    绘制空间拓扑图:
+    - 节点位置使用真实的 Lat/Lng
+    - 颜色区分 Major Hubs (绿色), Regional (紫色)
+    - 边显示为航线弧线
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+
+    # 获取坐标
+    pos = {}
+    for node, data in G.nodes(data=True):
+        if data.get("lat") and data.get("lng"):
+            pos[node] = (data["lng"], data["lat"]) # X=lng, Y=lat
+        else:
+            # 如果没坐标，使用布局生成一个远离的坐标
+            pos[node] = (100, 20) 
+
+    # 分类映射
+    cat_map = dict(zip(centrality_df["node"], centrality_df["category"]))
+    colors_cfg = classification_cfg.get("colors", {})
+    
+    node_colors = []
+    for node in G.nodes():
+        cat = cat_map.get(node, "Feeder")
+        if cat == "Major Hub": node_colors.append(colors_cfg.get("major_hub", "#10B981"))
+        elif cat == "Regional Hub": node_colors.append(colors_cfg.get("regional_hub", "#6366F1"))
+        else: node_colors.append(colors_cfg.get("feeder", "#94A3B8"))
+
+    # 绘制边
+    nx.draw_networkx_edges(
+        G, pos, ax=ax,
+        alpha=0.15,
+        edge_color="#CBD5E1",
+        width=1.0,
+        arrows=True,
+        arrowsize=10,
+        connectionstyle="arc3,rad=0.1", # 弧线
+    )
+
+    # 绘制节点
+    degrees = dict(G.degree(weight="weight"))
+    max_deg = max(degrees.values()) if degrees else 1
+    node_sizes = [200 + 1500 * (degrees.get(n, 0) / max_deg) for n in G.nodes()]
+
+    nx.draw_networkx_nodes(
+        G, pos, ax=ax,
+        node_size=node_sizes,
+        node_color=node_colors,
+        edgecolors="white",
+        linewidths=1.5,
+        alpha=0.9,
+    )
+
+    # 标签
+    nx.draw_networkx_labels(G, pos, ax=ax, font_size=9, font_weight="bold", font_color="#1E293B")
+
+    # 图例
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='Major Hubs',
+               markerfacecolor=colors_cfg.get("major_hub", "#10B981"), markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Regional Hubs',
+               markerfacecolor=colors_cfg.get("regional_hub", "#6366F1"), markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='Feeder Airports',
+               markerfacecolor=colors_cfg.get("feeder", "#94A3B8"), markersize=10),
+    ]
+    ax.legend(handles=legend_elements, loc='lower left', frameon=True, fontsize=10)
+
+    ax.set_title("航空货运网络空间拓扑图 (Spatial Topology Map)", fontsize=14, fontweight="bold")
+    ax.set_facecolor("#F8FAFC")
+    ax.grid(True, linestyle='--', alpha=0.3)
+    
+    _save_fig(fig, os.path.join(output_dir, "spatial_topology.png"), dpi)
+
+
+def generate_all_plots(G, centrality_df, robustness_df, output_dir, classification_cfg=None, top_n=15, dpi=150):
     """
     生成所有可视化图表。
-
-    Parameters
-    ----------
-    G : nx.DiGraph
-    centrality_df : pd.DataFrame
-    robustness_df : pd.DataFrame
-    output_dir : str
-    top_n : int
-    dpi : int
     """
+    if classification_cfg is None: classification_cfg = {}
+    
     print("\n" + "=" * 60)
     print(" 生成可视化图表")
     print("=" * 60)
 
-    print("\n[1/6] 网络拓扑图...")
+    print("\n[0/7] 空间拓扑图 (Spatial Topology)...")
+    plot_spatial_topology(G, centrality_df, output_dir, classification_cfg, dpi)
+
+    print("[1/7] 网络概览图...")
     plot_network_graph(G, centrality_df, output_dir, dpi)
 
-    print("[2/6] 中心性柱状图...")
+    print("[2/7] 中心性柱状图...")
     plot_centrality_bars(centrality_df, output_dir, top_n, dpi)
 
-    print("[3/6] 中心性热力图...")
+    print("[3/7] 中心性热力图...")
     plot_centrality_heatmap(centrality_df, output_dir, dpi)
 
-    print("[4/6] 鲁棒性曲线...")
+    print("[4/7] 鲁棒性曲线...")
     plot_robustness_curves(robustness_df, output_dir, dpi)
 
-    print("[5/6] 度分布图...")
+    print("[5/7] 度分布图...")
     plot_degree_distribution(G, output_dir, dpi)
 
-    print("[6/6] 相关矩阵...")
+    print("[6/7] 相关矩阵...")
     plot_correlation_matrix(centrality_df, output_dir, dpi)
 
     print(f"\n✅ 所有图表已保存至 {output_dir}")
