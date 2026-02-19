@@ -1,0 +1,5 @@
+{
+  "name": "AirCargoNet - Complex Network Analysis Tool",
+  "description": "A comprehensive tool for analyzing air cargo networks using complex network theory, featuring centrality metrics (including DomiRank), topology analysis, and robustness simulations.",
+  "requestFramePermissions": []
+}
