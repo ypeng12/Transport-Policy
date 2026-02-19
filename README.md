@@ -2,7 +2,8 @@
 
 This repository provides an automated pipeline based on complex network theory to analyze the structural characteristics, node importance, and robustness of air cargo networks (specifically tailored for China's domestic system).
 
-![Network Topology](data/processed/network_graph.png)
+![Network Topology](<img width="1531" height="1253" alt="image" src="https://github.com/user-attachments/assets/708f7c1b-6027-4da6-9fe9-beec404207e8" />
+)
 
 ## Core Features
 
