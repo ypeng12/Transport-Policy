@@ -1,0 +1,11 @@
+{
+  "density": 0.1774891774891775,
+  "clustering_coefficient": 0.4543426270698998,
+  "avg_shortest_path": 2.038961038961039,
+  "ngc": 1.0,
+  "num_nodes": 22,
+  "num_edges": 82,
+  "small_world_ratio_c": 1.279916425038376,
+  "small_world_ratio_l": 0.8678669941025258,
+  "is_small_world": false
+}
